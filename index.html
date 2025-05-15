@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Euclidean Algorithm</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background: white;
+        }
+
+        #controls {
+            margin-bottom: 5px;
+        }
+
+        label,
+        button {
+            margin: 0 5px;
+        }
+
+        #message {
+            margin: 10px 0;
+            min-height: 1.2em;
+            font-style: italic;
+        }
+
+        #log {
+            width: 600px;
+            max-height: 150px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #ccc;
+            padding: 10px;
+            font-size: 0.9em;
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Euclidean Algorithm</h2>
+    <div id="controls">
+        <label>A: <input type="number" id="inputA" value="48" min="1"></label>
+        <label>B: <input type="number" id="inputB" value="18" min="1"></label>
+        <button id="resetBtn">Reset</button>
+        <button id="modBtn" disabled>Modulo Step</button>
+    </div>
+    <div id="message"></div>
+    <canvas id="gcdCanvas" width="600" height="200"></canvas>
+    <div id="log" style="display: none;"></div>
+
+    <script>
+        const canvas = document.getElementById('gcdCanvas');
+        const ctx = canvas.getContext('2d');
+        const resetBtn = document.getElementById('resetBtn');
+        const modBtn = document.getElementById('modBtn');
+        const inpA = document.getElementById('inputA');
+        const inpB = document.getElementById('inputB');
+        const msgDiv = document.getElementById('message');
+        const logDiv = document.getElementById('log');
+
+        let A = 0, B = 0, origA = 0, origB = 0;
+        const logHistory = [];
+
+        function drawBars(vals) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const maxVal = Math.max(vals.a, vals.b, 1);
+            const barMaxW = canvas.width - 120;
+            const barH = 40;
+            // A bar
+            const wA = vals.a / maxVal * barMaxW;
+            ctx.fillStyle = '#4caf50';
+            ctx.fillRect(50, 30, wA, barH);
+            ctx.fillStyle = '#000';
+            ctx.fillText(`A = ${Math.round(vals.a)}`, 60 + wA, 30 + barH / 2 + 5);
+            // B bar
+            const wB = vals.b / maxVal * barMaxW;
+            ctx.fillStyle = '#2196f3';
+            ctx.fillRect(50, 100, wB, barH);
+            ctx.fillStyle = '#000';
+            ctx.fillText(`B = ${Math.round(vals.b)}`, 60 + wB, 100 + barH / 2 + 5);
+        }
+
+        function updateButtons() {
+            const running = A > 0 && B > 0;
+            modBtn.disabled = !running;
+        }
+
+        function updateLog() {
+            logDiv.innerHTML = logHistory.map(entry => `<div>${entry}</div>`).join('');
+            logDiv.scrollTop = logDiv.scrollHeight;
+            logDiv.style.display = logHistory.length === 0 ? 'none' : 'block';
+        }
+
+        function ease(t) {
+            return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+        }
+
+        function animateStep(oldA, oldB, newA, newB, message) {
+            logHistory.push(message);
+            updateLog();
+            msgDiv.textContent = message;
+            modBtn.disabled = true;
+
+            const duration = 250;
+            const start = performance.now();
+            function frame(now) {
+                const tRaw = Math.min((now - start) / duration, 1);
+                const t = ease(tRaw);
+                const curA = oldA + (newA - oldA) * t;
+                const curB = oldB + (newB - oldB) * t;
+                drawBars({ a: curA, b: curB });
+                if (tRaw < 1) {
+                    requestAnimationFrame(frame);
+                } else {
+                    A = newA; B = newB;
+                    inpA.value = A; inpB.value = B;
+                    updateButtons();
+                    if (A === 0 || B === 0) {
+                        const d = A === 0 ? B : A;
+                        const finalMsg = `gcd(${origA}, ${origB}) = ${d}`;
+                        logHistory.push(finalMsg);
+                        updateLog();
+                        msgDiv.textContent = finalMsg;
+                    }
+                }
+            }
+            requestAnimationFrame(frame);
+        }
+
+        function resetAndDraw() {
+            // whenever inputs change
+            A = Math.max(1, parseInt(inpA.value, 10) || 1);
+            B = Math.max(1, parseInt(inpB.value, 10) || 1);
+            origA = A; origB = B;
+            inpA.value = A; inpB.value = B;
+            logHistory.length = 0;
+            updateLog();
+            msgDiv.textContent = '';
+            drawBars({ a: A, b: B });
+            updateButtons();
+        }
+
+        // update on input change
+        inpA.addEventListener('input', resetAndDraw);
+        inpB.addEventListener('input', resetAndDraw);
+
+        resetBtn.addEventListener('click', () => {
+            // simply reset history and orig values
+            A = origA;
+            B = origB;
+            inpA.value = A;
+            inpB.value = B;
+            logHistory.length = 0;
+            updateLog();
+            msgDiv.textContent = '';
+            updateButtons();
+            resetAndDraw();
+        });
+
+        modBtn.addEventListener('click', () => {
+            const oldA = A, oldB = B;
+            let newA = A, newB = B, message;
+            if (A >= B) {
+                newA = A % B;
+                message = `A (${A}) ≥ B (${B}), A ← A % B = ${newA}`;
+            } else {
+                newB = B % A;
+                message = `A (${A}) < B (${B}), B ← B % A = ${newB}`;
+            }
+            animateStep(oldA, oldB, newA, newB, message);
+        });
+
+        // initial draw
+        resetAndDraw();
+    </script>
+
+</body>
+
+</html>
